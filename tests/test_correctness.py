@@ -7,7 +7,7 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from hgemm_tensorcore.functional import hgemm
 
-@pytest.mark.parametrize("backend", ["v1"])
+@pytest.mark.parametrize("backend", ["v1", "v2"])
 @pytest.mark.parametrize("M,N,K", [
     (16, 16, 16),       # minimum MMA tile
     (128, 128, 128),    # single block

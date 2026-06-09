@@ -5,8 +5,8 @@ import hgemm_tensorcore_cpp
 BACKEND_TO_VERSION = {
     "naive": 1,
     "v1": 1,
-    # "smem": 2,
-    # "v2": 2,
+    "smem": 2,
+    "v2": 2,
     # "wmma": 3,
     # "v3": 3,
     # "wmma_pipeline": 4,

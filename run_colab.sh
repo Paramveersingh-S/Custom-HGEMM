@@ -11,4 +11,4 @@ echo "Running correctness tests..."
 pytest tests/test_correctness.py -v
 
 echo "Running benchmark..."
-python benchmarks/bench_vs_cublas.py --backend v1
+python benchmarks/bench_vs_cublas.py --backend v2
