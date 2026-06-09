@@ -35,9 +35,23 @@ def hgemm(
     if C is not None:
         assert C.dtype == torch.float16, "C must be float16"
 
+    M, K = A.shape
+    K_, N = B.shape
+    assert K == K_, "Inner dimensions must match"
+
+    # Pad matrices to multiples of block sizes (128 for M, N and 32 for K) 
+    # to prevent out-of-bounds page faults in unpredicated CuTe copies
+    pad_M = (128 - (M % 128)) % 128
+    pad_N = (128 - (N % 128)) % 128
+    pad_K = (32 - (K % 32)) % 32
+
+    A_padded = torch.nn.functional.pad(A, (0, pad_K, 0, pad_M)) if (pad_K > 0 or pad_M > 0) else A
+    B_padded = torch.nn.functional.pad(B, (0, pad_N, 0, pad_K)) if (pad_N > 0 or pad_K > 0) else B
+
     version = BACKEND_TO_VERSION.get(backend, 1)
     
-    out = hgemm_tensorcore_cpp.hgemm(A, B, version)
+    out_padded = hgemm_tensorcore_cpp.hgemm(A_padded, B_padded, version)
+    out = out_padded[:M, :N].contiguous()
     
     if alpha != 1.0:
         out = out * alpha

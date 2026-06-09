@@ -26,12 +26,12 @@ __global__ void hgemm_v4_wmma_pipeline_kernel(const half* A, const half* B, half
     const half* B_block = B + bx * BN;
     
     // Double buffers
-    __shared__ half s_A[2][BK][BM];
+    __shared__ half s_A[2][BM][BK];
     __shared__ half s_B[2][BK][BN];
     
     __shared__ float s_C_tile[8][16][16];
 
-    wmma::fragment<wmma::matrix_a, 16, 16, 16, half, wmma::col_major> a_frag[2]; 
+    wmma::fragment<wmma::matrix_a, 16, 16, 16, half, wmma::row_major> a_frag[2]; 
     wmma::fragment<wmma::matrix_b, 16, 16, 16, half, wmma::row_major> b_frag[4]; 
     wmma::fragment<wmma::accumulator, 16, 16, 16, float> c_frag[2][4];
 
@@ -53,11 +53,11 @@ __global__ void hgemm_v4_wmma_pipeline_kernel(const half* A, const half* B, half
         int a_col = linear_idx % BK;
         
         if ((by * BM + a_row) < M && a_col < K) { // k=0
-            cp_async_cg_16(&s_A[0][a_col][a_row], &A_block[a_row * K + a_col]);
+            cp_async_cg_16(&s_A[0][a_row][a_col], &A_block[a_row * K + a_col]);
         } else {
             // Fallback for out-of-bounds
             float4 zeros = {0.0f, 0.0f, 0.0f, 0.0f};
-            *reinterpret_cast<float4*>(&s_A[0][a_col][a_row]) = zeros;
+            *reinterpret_cast<float4*>(&s_A[0][a_row][a_col]) = zeros;
         }
     }
 
@@ -88,10 +88,10 @@ __global__ void hgemm_v4_wmma_pipeline_kernel(const half* A, const half* B, half
                 int a_col = linear_idx % BK;
                 
                 if ((by * BM + a_row) < M && (next_k + a_col) < K) {
-                    cp_async_cg_16(&s_A[nxt][a_col][a_row], &A_block[a_row * K + next_k + a_col]);
+                    cp_async_cg_16(&s_A[nxt][a_row][a_col], &A_block[a_row * K + next_k + a_col]);
                 } else {
                     float4 zeros = {0.0f, 0.0f, 0.0f, 0.0f};
-                    *reinterpret_cast<float4*>(&s_A[nxt][a_col][a_row]) = zeros;
+                    *reinterpret_cast<float4*>(&s_A[nxt][a_row][a_col]) = zeros;
                 }
             }
 
@@ -117,7 +117,7 @@ __global__ void hgemm_v4_wmma_pipeline_kernel(const half* A, const half* B, half
         for (int step = 0; step < BK; step += 16) {
             for (int i = 0; i < 2; i++) {
                 int smem_m = warp_m * WM + i * 16;
-                wmma::load_matrix_sync(a_frag[i], &s_A[cur][step][smem_m], BM);
+                wmma::load_matrix_sync(a_frag[i], &s_A[cur][smem_m][step], BK);
             }
 
             for (int j = 0; j < 4; j++) {
