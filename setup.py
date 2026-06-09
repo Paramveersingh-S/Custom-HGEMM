@@ -19,8 +19,12 @@ setup(
                 "src/hgemm_v1_naive.cu",
                 "src/hgemm_v2_smem.cu",
                 "src/hgemm_v3_wmma.cu",
+                "src/hgemm_v4_wmma_pipeline.cu",
+                "src/hgemm_v5_wmma_swizzle.cu",
+                "src/hgemm_v6_cute.cu",
+                "src/hgemm_v7_cute_swizzle.cu",
             ],
-            include_dirs=["include"],
+            include_dirs=["include", "cutlass/include", "cutlass/tools/util/include"],
             extra_compile_args={
                 "cxx": ["-O3"],
                 "nvcc": [

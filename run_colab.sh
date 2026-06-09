@@ -4,6 +4,11 @@
 echo "Installing pytest..."
 pip install pytest
 
+if [ ! -d "cutlass" ]; then
+    echo "Cloning CUTLASS for CuTe headers..."
+    git clone https://github.com/NVIDIA/cutlass.git
+fi
+
 echo "Building PyTorch extension..."
 pip install -e .
 

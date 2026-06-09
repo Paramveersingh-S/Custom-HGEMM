@@ -9,14 +9,14 @@ BACKEND_TO_VERSION = {
     "v2": 2,
     "wmma": 3,
     "v3": 3,
-    # "wmma_pipeline": 4,
-    # "v4": 4,
-    # "wmma_swizzle": 5,
-    # "v5": 5,
-    # "cute": 6,
-    # "v6": 6,
-    # "cute_swizzle": 7,
-    # "v7": 7,
+    "wmma_pipeline": 4,
+    "v4": 4,
+    "wmma_swizzle": 5,
+    "v5": 5,
+    "cute": 6,
+    "v6": 6,
+    "cute_swizzle": 7,
+    "v7": 7,
 }
 
 def hgemm(

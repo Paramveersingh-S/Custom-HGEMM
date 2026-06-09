@@ -6,6 +6,10 @@
 void launch_hgemm_v1_naive(const half* A, const half* B, half* C, int M, int N, int K);
 void launch_hgemm_v2_smem(const half* A, const half* B, half* C, int M, int N, int K);
 void launch_hgemm_v3_wmma(const half* A, const half* B, half* C, int M, int N, int K);
+void launch_hgemm_v4_wmma_pipeline(const half* A, const half* B, half* C, int M, int N, int K);
+void launch_hgemm_v5_wmma_swizzle(const half* A, const half* B, half* C, int M, int N, int K);
+void launch_hgemm_v6_cute(const half* A, const half* B, half* C, int M, int N, int K);
+void launch_hgemm_v7_cute_swizzle(const half* A, const half* B, half* C, int M, int N, int K);
 
 // The main dispatcher
 torch::Tensor hgemm_forward(torch::Tensor A, torch::Tensor B, int version) {
@@ -37,6 +41,18 @@ torch::Tensor hgemm_forward(torch::Tensor A, torch::Tensor B, int version) {
             break;
         case 3:
             launch_hgemm_v3_wmma(ptr_A, ptr_B, ptr_C, M, N, K);
+            break;
+        case 4:
+            launch_hgemm_v4_wmma_pipeline(ptr_A, ptr_B, ptr_C, M, N, K);
+            break;
+        case 5:
+            launch_hgemm_v5_wmma_swizzle(ptr_A, ptr_B, ptr_C, M, N, K);
+            break;
+        case 6:
+            launch_hgemm_v6_cute(ptr_A, ptr_B, ptr_C, M, N, K);
+            break;
+        case 7:
+            launch_hgemm_v7_cute_swizzle(ptr_A, ptr_B, ptr_C, M, N, K);
             break;
         default:
             TORCH_CHECK(false, "Unsupported version");
