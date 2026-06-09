@@ -16,8 +16,8 @@ using MMA_Atom_Arch = MMA_Atom<SM80_16x8x16_F32F16F16F32_TN>;
 using TiledMMA_Arch = TiledMMA<MMA_Atom_Arch, Layout<Shape<_4,_2,_1>>, Tile<bM,bN,bK>>;
 
 // Shared memory layouts (No swizzle for v6)
-using SmemLayoutA = decltype(make_layout(make_shape(bM{}, bK{}), LayoutRight{}));
-using SmemLayoutB = decltype(make_layout(make_shape(bN{}, bK{}), LayoutRight{}));
+using SmemLayoutA = decltype(make_layout(make_shape(bM{}, bK{}), LayoutRight{})); // K contiguous
+using SmemLayoutB = decltype(make_layout(make_shape(bN{}, bK{}), LayoutLeft{}));  // N contiguous
 
 __global__ void hgemm_v6_cute_kernel(const half* A, const half* B, half* C, int M, int N, int K) {
     // 1. Tensors in Global Memory

@@ -15,11 +15,12 @@ using bK = Int<32>;
 using MMA_Atom_Arch = MMA_Atom<SM80_16x8x16_F32F16F16F32_TN>;
 using TiledMMA_Arch = TiledMMA<MMA_Atom_Arch, Layout<Shape<_4,_2,_1>>, Tile<bM,bN,bK>>;
 
-// Shared memory swizzle atom
-using SmemLayoutAtom = decltype(composition(Swizzle<3,3,3>{}, make_layout(make_shape(_8, _64), make_stride(_64, _1))));
+// Shared memory swizzle atoms
+using SmemLayoutAtomA = decltype(composition(Swizzle<3,3,3>{}, make_layout(make_shape(_8, _64), make_stride(_64, _1)))); // K contiguous
+using SmemLayoutAtomB = decltype(composition(Swizzle<3,3,3>{}, make_layout(make_shape(_64, _8), make_stride(_1, _64)))); // N contiguous
 
-using SmemLayoutA = decltype(tile_to_shape(SmemLayoutAtom{}, make_shape(bM{}, bK{})));
-using SmemLayoutB = decltype(tile_to_shape(SmemLayoutAtom{}, make_shape(bN{}, bK{})));
+using SmemLayoutA = decltype(tile_to_shape(SmemLayoutAtomA{}, make_shape(bM{}, bK{})));
+using SmemLayoutB = decltype(tile_to_shape(SmemLayoutAtomB{}, make_shape(bN{}, bK{})));
 
 __global__ void hgemm_v7_cute_swizzle_kernel(const half* A, const half* B, half* C, int M, int N, int K) {
     Tensor gA = make_tensor(make_gmem_ptr(A), make_shape(M, K), make_stride(K, Int<1>{}));
