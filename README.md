@@ -89,12 +89,30 @@ python benchmarks/bench_vs_cublas.py --backend v1
 
 ## 📊 Performance Tracking
 
-| Version | Description | Target Efficiency | Bank Conflicts |
+We benchmarked all versions from `v1` to `v7` against `cublasGemmEx` on an NVIDIA Tesla T4 GPU (Turing SM75).
+
+### 📈 TFLOPS vs Matrix Size
+![TFLOPS Comparison](docs/tflops_comparison.png)
+
+This graph showcases the absolute throughput in TeraFLOPS for square matrices of varying sizes:
+- **v1 (Naive)** and **v2 (SMEM)** are heavily constrained by memory access latency and bank conflicts, peaking around 3 TFLOPS.
+- **v4 (Async Pipeline)** demonstrates a significant leap by introducing asynchronous global-to-shared memory copies, successfully hiding memory latency behind math execution and reaching nearly 9 TFLOPS.
+- **v5 (SMEM Padding)** dominates the benchmark on the Turing architecture by efficiently resolving bank conflicts through stride padding while maintaining native `wmma` API compatibility, peaking at over **13.3 TFLOPS**.
+- **v7 (CuTe + Swizzle)** demonstrates the power of CUTLASS 3.0 abstractions, adapting seamlessly to the SM75 hardware using software `UniversalCopy` and Turing-specific `16x8x8` MMA atoms to achieve **10.7 TFLOPS**.
+
+### ⚡ Efficiency vs cuBLAS
+![Efficiency Comparison](docs/efficiency_comparison.png)
+
+This graph displays the relative efficiency compared to the highly optimized cuBLAS library:
+- By intelligently hiding memory latency and eliminating shared memory bank conflicts, our **v5** kernel achieves an impressive **70.2%** of cuBLAS efficiency on the T4 GPU.
+- The steady progression from **1.9% (v1)** to **70.2% (v5)** highlights the critical importance of memory hierarchy management and Tensor Core utilization in CUDA kernel optimization.
+
+| Version | Description | T4 Efficiency | Bank Conflicts |
 |---|---|---|---|
-| **v1** | Naive Implementation | < 5% | N/A |
-| **v2** | Shared Memory Tiling | ~ 15% | High |
-| **v3** | WMMA Tensor Cores | ~ 60% | High |
-| **v4** | Async Pipelining | ~ 80% | High |
-| **v5** | SMEM Swizzling | ~ 95% | **Zero** |
-| **v6** | CuTe Abstractions | ~ 95% | **Zero** |
-| **v7** | CuTe + Swizzling | **≥ 98%** | **Zero** |
+| **v1** | Naive Implementation | 1.9% | N/A |
+| **v2** | Shared Memory Tiling | 15.8% | High |
+| **v3** | WMMA Tensor Cores | 21.0% | High |
+| **v4** | Async Pipelining | 47.6% | High |
+| **v5** | SMEM Swizzling (Padding) | **70.2%** | **Zero** |
+| **v6** | CuTe Abstractions | 45.6% | **Zero** |
+| **v7** | CuTe + Swizzle | **58.9%** | **Zero** |
