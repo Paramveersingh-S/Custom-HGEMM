@@ -17,8 +17,8 @@ __global__ void hgemm_v7_cute_swizzle_kernel(const half* A, const half* B, half*
     using TiledMMA_Arch = TiledMMA<MMA_Atom_Arch, Layout<Shape<_4,_2,_1>>, Tile<bM,bN,bK>>;
 
     // Shared memory swizzle atoms (Swizzle<3,4,3> preserves 16-byte contiguity for cp.async!)
-    using SmemLayoutAtomA = decltype(composition(Swizzle<3,4,3>{}, Layout<Shape<_8, _64>, Stride<_64, _1>>{})); // K contiguous
-    using SmemLayoutAtomB = decltype(composition(Swizzle<3,4,3>{}, Layout<Shape<_64, _8>, Stride<_1, _64>>{})); // N contiguous
+    using SmemLayoutAtomA = decltype(composition(Swizzle<3,4,3>{}, Layout<Shape<_32, _32>, Stride<_32, _1>>{})); // K contiguous
+    using SmemLayoutAtomB = decltype(composition(Swizzle<3,4,3>{}, Layout<Shape<_32, _32>, Stride<_1, _32>>{})); // N contiguous
 
     using SmemLayoutA = decltype(tile_to_shape(SmemLayoutAtomA{}, make_shape(bM{}, bK{})));
     using SmemLayoutB = decltype(tile_to_shape(SmemLayoutAtomB{}, make_shape(bN{}, bK{})));
