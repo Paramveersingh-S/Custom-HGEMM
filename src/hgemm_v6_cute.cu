@@ -47,11 +47,12 @@ __global__ void hgemm_v6_cute_kernel(const half* A, const half* B, half* C, int 
     // 3. Tiled Copy for Global to Shared (cp.async)
     using CopyAtom = Copy_Atom<SM80_CP_ASYNC_CACHEGLOBAL<cute::uint128_t>, half>;
     auto tiled_copy_A = make_tiled_copy(CopyAtom{},
-                                        Layout<Shape<_32, _8>, Stride<_8, _1>>{},
+                                        Layout<Shape<_64, _4>, Stride<_4, _1>>{},
                                         Layout<Shape<_1, _8>>{});
+    // For B: (N, K) with stride (1, N). N is contiguous!
     auto tiled_copy_B = make_tiled_copy(CopyAtom{},
-                                        Layout<Shape<_32, _8>, Stride<_8, _1>>{},
-                                        Layout<Shape<_1, _8>>{});
+                                        Layout<Shape<_16, _16>, Stride<_1, _16>>{},
+                                        Layout<Shape<_8, _1>>{});
 
     auto thr_copy_A = tiled_copy_A.get_thread_slice(threadIdx.x);
     auto thr_copy_B = tiled_copy_B.get_thread_slice(threadIdx.x);
