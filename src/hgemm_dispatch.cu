@@ -5,6 +5,7 @@
 // Forward declarations of launch functions
 void launch_hgemm_v1_naive(const half* A, const half* B, half* C, int M, int N, int K);
 void launch_hgemm_v2_smem(const half* A, const half* B, half* C, int M, int N, int K);
+void launch_hgemm_v3_wmma(const half* A, const half* B, half* C, int M, int N, int K);
 
 // The main dispatcher
 torch::Tensor hgemm_forward(torch::Tensor A, torch::Tensor B, int version) {
@@ -33,6 +34,9 @@ torch::Tensor hgemm_forward(torch::Tensor A, torch::Tensor B, int version) {
             break;
         case 2:
             launch_hgemm_v2_smem(ptr_A, ptr_B, ptr_C, M, N, K);
+            break;
+        case 3:
+            launch_hgemm_v3_wmma(ptr_A, ptr_B, ptr_C, M, N, K);
             break;
         default:
             TORCH_CHECK(false, "Unsupported version");

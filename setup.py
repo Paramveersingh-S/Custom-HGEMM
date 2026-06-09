@@ -18,6 +18,7 @@ setup(
                 "src/hgemm_dispatch.cu",
                 "src/hgemm_v1_naive.cu",
                 "src/hgemm_v2_smem.cu",
+                "src/hgemm_v3_wmma.cu",
             ],
             include_dirs=["include"],
             extra_compile_args={
