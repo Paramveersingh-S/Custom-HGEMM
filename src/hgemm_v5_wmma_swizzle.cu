@@ -5,18 +5,6 @@
 
 using namespace nvcuda;
 
-// Swizzle at 16-byte (8 halfs) boundaries to preserve cp.async and ldmatrix alignment!
-struct SwizzleA {
-    __device__ __forceinline__ static int apply(int col, int row) {
-        return col ^ ((row % 4) * 8);
-    }
-};
-struct SwizzleB {
-    __device__ __forceinline__ static int apply(int col, int row) {
-        return col ^ ((row % 4) * 8);
-    }
-};
-
 // Phase 5: SMEM Swizzling (v5)
 const int BM = 128;
 const int BN = 128;
@@ -59,11 +47,11 @@ __global__ void hgemm_v5_wmma_swizzle_kernel(const half* A, const half* B, half*
         int a_col = linear_idx % BK;
         
         if ((by * BM + a_row) < M && a_col < K) {
-            int swizzled_col = SwizzleA::apply(a_col, a_row);
+            int swizzled_col = SwizzleA::apply(a_row, a_col);
             cp_async_cg_16(&s_A[0][a_row][swizzled_col], &A_block[a_row * K + a_col]);
         } else {
             float4 zeros = {0.0f, 0.0f, 0.0f, 0.0f};
-            int swizzled_col = SwizzleA::apply(a_col, a_row);
+            int swizzled_col = SwizzleA::apply(a_row, a_col);
             *reinterpret_cast<float4*>(&s_A[0][a_row][swizzled_col]) = zeros;
         }
     }
@@ -74,11 +62,11 @@ __global__ void hgemm_v5_wmma_swizzle_kernel(const half* A, const half* B, half*
         int b_col = linear_idx % BN;
         
         if (b_row < K && (bx * BN + b_col) < N) {
-            int swizzled_col = SwizzleB::apply(b_col, b_row);
+            int swizzled_col = SwizzleB::apply(b_row, b_col);
             cp_async_cg_16(&s_B[0][b_row][swizzled_col], &B_block[b_row * N + b_col]);
         } else {
             float4 zeros = {0.0f, 0.0f, 0.0f, 0.0f};
-            int swizzled_col = SwizzleB::apply(b_col, b_row);
+            int swizzled_col = SwizzleB::apply(b_row, b_col);
             *reinterpret_cast<float4*>(&s_B[0][b_row][swizzled_col]) = zeros;
         }
     }
@@ -96,11 +84,11 @@ __global__ void hgemm_v5_wmma_swizzle_kernel(const half* A, const half* B, half*
                 int a_col = linear_idx % BK;
                 
                 if ((by * BM + a_row) < M && (next_k + a_col) < K) {
-                    int swizzled_col = SwizzleA::apply(a_col, a_row);
+                    int swizzled_col = SwizzleA::apply(a_row, a_col);
                     cp_async_cg_16(&s_A[nxt][a_row][swizzled_col], &A_block[a_row * K + next_k + a_col]);
                 } else {
                     float4 zeros = {0.0f, 0.0f, 0.0f, 0.0f};
-                    int swizzled_col = SwizzleA::apply(a_col, a_row);
+                    int swizzled_col = SwizzleA::apply(a_row, a_col);
                     *reinterpret_cast<float4*>(&s_A[nxt][a_row][swizzled_col]) = zeros;
                 }
             }
@@ -111,11 +99,11 @@ __global__ void hgemm_v5_wmma_swizzle_kernel(const half* A, const half* B, half*
                 int b_col = linear_idx % BN;
                 
                 if ((next_k + b_row) < K && (bx * BN + b_col) < N) {
-                    int swizzled_col = SwizzleB::apply(b_col, b_row);
+                    int swizzled_col = SwizzleB::apply(b_row, b_col);
                     cp_async_cg_16(&s_B[nxt][b_row][swizzled_col], &B_block[(next_k + b_row) * N + b_col]);
                 } else {
                     float4 zeros = {0.0f, 0.0f, 0.0f, 0.0f};
-                    int swizzled_col = SwizzleB::apply(b_col, b_row);
+                    int swizzled_col = SwizzleB::apply(b_row, b_col);
                     *reinterpret_cast<float4*>(&s_B[nxt][b_row][swizzled_col]) = zeros;
                 }
             }
@@ -130,7 +118,7 @@ __global__ void hgemm_v5_wmma_swizzle_kernel(const half* A, const half* B, half*
                 int smem_m = warp_m * WM + i * 16;
                 int lane_row = laneId % 16;
                 int lane_col = (laneId / 16) * 8; 
-                int swizzled_col = SwizzleA::apply(step + lane_col, smem_m + lane_row);
+                int swizzled_col = SwizzleA::apply(smem_m + lane_row, step + lane_col);
                 
                 uint32_t* regs = reinterpret_cast<uint32_t*>(&a_frag[i]);
                 ldmatrix_x4_notrans(regs, &s_A[cur][smem_m + lane_row][swizzled_col]);
@@ -140,7 +128,7 @@ __global__ void hgemm_v5_wmma_swizzle_kernel(const half* A, const half* B, half*
                 int smem_n = warp_n * WN + j * 16;
                 int lane_row = laneId % 16;
                 int lane_col = (laneId / 16) * 8;
-                int swizzled_col = SwizzleB::apply(smem_n + lane_col, step + lane_row);
+                int swizzled_col = SwizzleB::apply(step + lane_row, smem_n + lane_col);
                 
                 uint32_t* regs = reinterpret_cast<uint32_t*>(&b_frag[j]);
                 ldmatrix_x4_notrans(regs, &s_B[cur][step + lane_row][swizzled_col]);
