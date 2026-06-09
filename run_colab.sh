@@ -9,8 +9,8 @@ if [ ! -d "cutlass" ]; then
     git clone https://github.com/NVIDIA/cutlass.git
 fi
 
-echo "Building PyTorch extension..."
-pip install -e .
+echo "Building PyTorch extension (verbose mode)..."
+pip install -v -e .
 
 echo "Running correctness tests..."
 pytest tests/test_correctness.py -v

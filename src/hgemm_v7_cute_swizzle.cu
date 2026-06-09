@@ -13,7 +13,7 @@ using bK = Int<32>;
 
 // Thread layout for MMA
 using MMA_Atom_Arch = MMA_Atom<SM80_16x8x16_F32F16F16F32_TN>;
-using TiledMMA_Arch = TiledMMA<MMA_Atom_Arch, Layout<Shape<_2,_2,_1>>, Tile<_16,_16,_16>>;
+using TiledMMA_Arch = TiledMMA<MMA_Atom_Arch, Layout<Shape<_4,_2,_1>>, Tile<bM,bN,bK>>;
 
 // Shared memory swizzle atom
 using SmemLayoutAtom = decltype(composition(Swizzle<3,3,3>{}, make_layout(make_shape(_8, _64), make_stride(_64, _1))));
