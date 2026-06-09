@@ -29,7 +29,7 @@ __global__ void hgemm_v5_wmma_swizzle_kernel(const half* A, const half* B, half*
     __shared__ half s_B[2][BK][BN];
     __shared__ float s_C_tile[8][16][16];
 
-    wmma::fragment<wmma::matrix_a, 16, 16, 16, half, wmma::col_major> a_frag[2]; 
+    wmma::fragment<wmma::matrix_a, 16, 16, 16, half, wmma::row_major> a_frag[2]; 
     wmma::fragment<wmma::matrix_b, 16, 16, 16, half, wmma::row_major> b_frag[4]; 
     wmma::fragment<wmma::accumulator, 16, 16, 16, float> c_frag[2][4];
 

@@ -7,18 +7,21 @@ using namespace cute;
 
 __global__ void hgemm_v7_cute_swizzle_kernel(const half* A, const half* B, half* C, int M, int N, int K) {
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
-    // Tile shapes
+    using MMA_Atom_Arch = MMA_Atom<SM80_16x8x16_F32F16F16F32_TN>;
+    using CopyAtom = Copy_Atom<SM80_CP_ASYNC_CACHEGLOBAL<cute::uint128_t>, half>;
+#else
+    using MMA_Atom_Arch = MMA_Atom<SM75_16x8x8_F32F16F16F32_TN>;
+    using CopyAtom = Copy_Atom<UniversalCopy<cute::uint128_t>, half>;
+#endif
+
     using bM = Int<128>;
     using bN = Int<128>;
     using bK = Int<32>;
 
-    // Thread layout for MMA
-    using MMA_Atom_Arch = MMA_Atom<SM80_16x8x16_F32F16F16F32_TN>;
     using TiledMMA_Arch = TiledMMA<MMA_Atom_Arch, Layout<Shape<_4,_2,_1>>, Tile<bM,bN,bK>>;
 
-    // Shared memory swizzle atoms (Swizzle<3,4,3> preserves 16-byte contiguity for cp.async!)
-    using SmemLayoutAtomA = decltype(composition(Swizzle<3,4,3>{}, Layout<Shape<_32, _32>, Stride<_32, _1>>{})); // K contiguous
-    using SmemLayoutAtomB = decltype(composition(Swizzle<3,4,3>{}, Layout<Shape<_32, _32>, Stride<_1, _32>>{})); // N contiguous
+    using SmemLayoutAtomA = decltype(composition(Swizzle<3,4,3>{}, Layout<Shape<_32, _32>, Stride<_32, _1>>{}));
+    using SmemLayoutAtomB = decltype(composition(Swizzle<3,4,3>{}, Layout<Shape<_32, _32>, Stride<_1, _32>>{}));
 
     using SmemLayoutA = decltype(tile_to_shape(SmemLayoutAtomA{}, make_shape(bM{}, bK{})));
     using SmemLayoutB = decltype(tile_to_shape(SmemLayoutAtomB{}, make_shape(bN{}, bK{})));
@@ -40,7 +43,6 @@ __global__ void hgemm_v7_cute_swizzle_kernel(const half* A, const half* B, half*
     Tensor sA = make_tensor(make_smem_ptr(sA_data), SmemLayoutA{});
     Tensor sB = make_tensor(make_smem_ptr(sB_data), SmemLayoutB{});
 
-    using CopyAtom = Copy_Atom<SM80_CP_ASYNC_CACHEGLOBAL<cute::uint128_t>, half>;
     auto tiled_copy_A = make_tiled_copy(CopyAtom{},
                                         Layout<Shape<_64, _4>, Stride<_4, _1>>{},
                                         Layout<Shape<_1, _8>>{});
@@ -71,8 +73,11 @@ __global__ void hgemm_v7_cute_swizzle_kernel(const half* A, const half* B, half*
     for (int k = 0; k < num_k_tiles; ++k) {
         cute::copy(tiled_copy_A, tAgA(_, _, _, k), tAsA);
         cute::copy(tiled_copy_B, tBgB(_, _, _, k), tBsB);
+        
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
         cp_async_fence();
         cp_async_wait<0>();
+#endif
         __syncthreads();
 
         Tensor tCrA = thr_mma.make_fragment_A(tCsA);
@@ -89,7 +94,6 @@ __global__ void hgemm_v7_cute_swizzle_kernel(const half* A, const half* B, half*
     for (int i = 0; i < size(tCrC); ++i) {
         tCgC_half(i) = __float2half(tCrC(i));
     }
-#endif
 }
 
 void launch_hgemm_v7_cute_swizzle(const half* A, const half* B, half* C, int M, int N, int K) {
