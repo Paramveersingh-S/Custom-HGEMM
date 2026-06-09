@@ -1,38 +1,33 @@
 #include "hgemm_common.cuh"
 
-#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
 #include <cute/tensor.hpp>
 #include <cute/algorithm/gemm.hpp>
 
 using namespace cute;
 
-// Tile shapes
-using bM = Int<128>;
-using bN = Int<128>;
-using bK = Int<32>;
-
-// Thread layout for MMA: 4x2x1 warps (256 threads), covering the full bM x bN x bK tile
-using MMA_Atom_Arch = MMA_Atom<SM80_16x8x16_F32F16F16F32_TN>;
-using TiledMMA_Arch = TiledMMA<MMA_Atom_Arch, Layout<Shape<_4,_2,_1>>, Tile<bM,bN,bK>>;
-
-// Shared memory layouts (No swizzle for v6)
-using SmemLayoutA = decltype(make_layout(make_shape(bM{}, bK{}), LayoutRight{})); // K contiguous
-using SmemLayoutB = decltype(make_layout(make_shape(bN{}, bK{}), LayoutLeft{}));  // N contiguous
-
 __global__ void hgemm_v6_cute_kernel(const half* A, const half* B, half* C, int M, int N, int K) {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
+    // Tile shapes
+    using bM = Int<128>;
+    using bN = Int<128>;
+    using bK = Int<32>;
+
+    // Thread layout for MMA: 4x2x1 warps (256 threads), covering the full bM x bN x bK tile
+    using MMA_Atom_Arch = MMA_Atom<SM80_16x8x16_F32F16F16F32_TN>;
+    using TiledMMA_Arch = TiledMMA<MMA_Atom_Arch, Layout<Shape<_4,_2,_1>>, Tile<bM,bN,bK>>;
+
+    // Shared memory layouts (No swizzle for v6)
+    using SmemLayoutA = decltype(make_layout(make_shape(bM{}, bK{}), LayoutRight{})); // K contiguous
+    using SmemLayoutB = decltype(make_layout(make_shape(bN{}, bK{}), LayoutLeft{}));  // N contiguous
+
     // 1. Tensors in Global Memory
-    // A is M x K row-major
     Tensor gA = make_tensor(make_gmem_ptr(A), make_shape(M, K), make_stride(K, Int<1>{}));
-    // B is K x N row-major -> B^T is N x K col-major
     Tensor gB = make_tensor(make_gmem_ptr(B), make_shape(N, K), make_stride(Int<1>{}, N));
-    // C is M x N row-major
     Tensor gC = make_tensor(make_gmem_ptr(C), make_shape(M, N), make_stride(N, Int<1>{}));
 
-    // Block coordinates
     int bx = blockIdx.x;
     int by = blockIdx.y;
 
-    // Slice global tensors for the current block
     Tensor gA_block = local_tile(gA, make_tile(bM{}, bK{}), make_coord(by, _)); // (bM, bK, k_tiles)
     Tensor gB_block = local_tile(gB, make_tile(bN{}, bK{}), make_coord(bx, _)); // (bN, bK, k_tiles)
     Tensor gC_block = local_tile(gC, make_tile(bM{}, bN{}), make_coord(by, bx)); // (bM, bN)
@@ -78,14 +73,12 @@ __global__ void hgemm_v6_cute_kernel(const half* A, const half* B, half* C, int 
     int num_k_tiles = size<2>(gA_block);
 
     for (int k = 0; k < num_k_tiles; ++k) {
-        // Copy to SMEM
         cute::copy(tiled_copy_A, tAgA(_, _, _, k), tAsA);
         cute::copy(tiled_copy_B, tBgB(_, _, _, k), tBsB);
         cp_async_fence();
         cp_async_wait<0>();
         __syncthreads();
 
-        // GEMM on SMEM
         Tensor tCrA = thr_mma.make_fragment_A(tCsA);
         Tensor tCrB = thr_mma.make_fragment_B(tCsB);
 
@@ -96,22 +89,17 @@ __global__ void hgemm_v6_cute_kernel(const half* A, const half* B, half* C, int 
         __syncthreads();
     }
 
-    // Convert accumulator and store to global memory
     Tensor tCgC_half = make_tensor(tCgC.data(), tCgC.shape(), tCgC.stride());
     for (int i = 0; i < size(tCrC); ++i) {
         tCgC_half(i) = __float2half(tCrC(i));
     }
+#endif
 }
-#endif // __CUDA_ARCH__ >= 800
 
 void launch_hgemm_v6_cute(const half* A, const half* B, half* C, int M, int N, int K) {
-#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
     dim3 block(256);
     dim3 grid((N + 128 - 1) / 128, (M + 128 - 1) / 128);
 
     hgemm_v6_cute_kernel<<<grid, block>>>(A, B, C, M, N, K);
     CHECK_CUDA(cudaGetLastError());
-#else
-    std::cerr << "CuTe requires SM80+" << std::endl;
-#endif
 }
