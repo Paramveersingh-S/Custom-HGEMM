@@ -6,7 +6,7 @@
 ![Optimization](https://img.shields.io/badge/Optimization-Tensor_Cores-orange.svg)
 ![Performance](https://img.shields.io/badge/Performance-%E2%89%A598%25_cuBLAS-brightgreen.svg)
 
-A production-grade, highly-optimized **Half-Precision General Matrix Multiplication (HGEMM)** CUDA kernel built from scratch. This project demonstrates mastery over NVIDIA GPU architectures, shared memory management, WMMA, CuTe, asynchronous pipelining, and bank conflict resolution. 
+highly-optimized **Half-Precision General Matrix Multiplication (HGEMM)** CUDA kernel built from scratch. This project demonstrates mastery over NVIDIA GPU architectures, shared memory management, WMMA, CuTe, asynchronous pipelining, and bank conflict resolution. 
 
 ---
 
